@@ -16,7 +16,28 @@ Get up and running with disaster recovery in 5 minutes!
 git clone https://github.com/your-username/ansible-disaster-recovery.git
 cd ansible-disaster-recovery
 
-# Edit inventory with your host IP
+# To test on your own computer (Localhost):
+cat <<EOF > inventories/staging/hosts
+[app_servers]
+localhost ansible_connection=local
+
+[db_servers]
+localhost ansible_connection=local
+
+[backup_servers]
+localhost ansible_connection=local
+
+[staging:children]
+app_servers
+db_servers
+backup_servers
+
+[staging:vars]
+env_name=staging
+ansible_python_interpreter=/usr/bin/python3
+EOF
+
+# OR edit inventory with your remote host IP
 vim inventories/staging/hosts
 # Change: ansible_host=192.168.1.10 to your IP
 ```
@@ -24,7 +45,7 @@ vim inventories/staging/hosts
 ### 2. Test Connectivity (30 seconds)
 
 ```bash
-ansible -i inventories/staging/hosts all -m ping
+make ping ENV=staging
 ```
 
 ### 3. Deploy Everything (3 minutes)

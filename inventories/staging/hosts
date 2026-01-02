@@ -1,0 +1,17 @@
+[app_servers]
+localhost ansible_connection=local
+
+[db_servers]
+localhost ansible_connection=local
+
+[backup_servers]
+localhost ansible_connection=local
+
+[staging:children]
+app_servers
+db_servers
+backup_servers
+
+[staging:vars]
+env_name=staging
+ansible_python_interpreter=/usr/bin/python3

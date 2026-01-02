@@ -58,17 +58,44 @@ cd ansible-disaster-recovery
 
 ### 2. Configure Inventory
 
+You can test this project on a remote server or directly on your local machine.
+
+#### For Local Testing (Your own PC)
+Edit `inventories/staging/hosts` and set it to:
+```ini
+[app_servers]
+localhost ansible_connection=local
+
+[db_servers]
+localhost ansible_connection=local
+
+[backup_servers]
+localhost ansible_connection=local
+
+[staging:children]
+app_servers
+db_servers
+backup_servers
+
+[staging:vars]
+env_name=staging
+ansible_python_interpreter=/usr/bin/python3
+```
+
+#### For Remote Testing
 Edit the inventory file for your environment:
 
 ```bash
 # For staging
 vim inventories/staging/hosts
-
-# For production
-vim inventories/production/hosts
 ```
 
-### 3. Configure Secrets (Optional)
+### 3. Test Connectivity
+```bash
+make ping ENV=staging
+```
+
+### 4. Configure Secrets (Optional)
 
 ```bash
 # Create encrypted vault for sensitive data
