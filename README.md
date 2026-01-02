@@ -52,7 +52,7 @@ This project demonstrates enterprise-level DevOps practices for automated disast
 ### 1. Clone Repository
 
 ```bash
-git clone https://github.com/your-username/ansible-disaster-recovery.git
+git clone https://github.com/sebas80sebas/ansible-disaster-recovery.git
 cd ansible-disaster-recovery
 ```
 
@@ -110,7 +110,7 @@ vault_backup_encryption_key: "your-encryption-key"
 
 ```bash
 # Deploy to staging
-ansible-playbook -i inventories/staging/hosts site.yml
+ansible-playbook -i inventories/staging/hosts site.yml --ask-become-pass
 
 # Deploy to production
 ansible-playbook -i inventories/production/hosts site.yml --ask-vault-pass
