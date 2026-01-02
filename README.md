@@ -109,11 +109,9 @@ vault_backup_encryption_key: "your-encryption-key"
 ### 4. Deploy Complete Infrastructure
 
 ```bash
-# Deploy to staging
+# Deploy to staging (local or remote)
+# Use --ask-become-pass to provide your sudo password
 ansible-playbook -i inventories/staging/hosts site.yml --ask-become-pass
-
-# Deploy to production
-ansible-playbook -i inventories/production/hosts site.yml --ask-vault-pass
 ```
 
 ## 🔄 Backup & Recovery Operations
@@ -159,29 +157,18 @@ Based on testing with standard infrastructure:
 ansible-disaster-recovery/
 ├── ansible.cfg                 # Ansible configuration
 ├── site.yml                    # Main playbook - full deployment
+├── Makefile                    # Command shortcuts
 ├── inventories/
-│   ├── staging/
-│   │   ├── hosts              # Staging inventory
-│   │   └── group_vars/        # Staging variables
-│   └── production/
-│       ├── hosts              # Production inventory
-│       └── group_vars/        # Production variables
-├── playbooks/
-│   ├── backup.yml             # Manual backup execution
-│   ├── restore.yml            # Disaster recovery playbook
-│   ├── simulate_disaster.yml  # Disaster simulation
-│   └── verify.yml             # Post-recovery verification
-├── roles/
-│   ├── common/                # Base system setup
-│   ├── docker/                # Docker installation
-│   ├── application/           # App deployment
-│   ├── backup/                # Backup automation
-│   └── restore/               # Recovery procedures
-├── docs/
-│   ├── DEPLOYMENT.md          # Deployment guide
-│   ├── DISASTER_RECOVERY.md   # DR procedures
-│   └── TESTING.md             # Testing scenarios
-└── README.md
+│   ├── staging/                # Local/Staging environment (Port 8081)
+│   └── production/             # Production environment
+├── roles/                      # Modular automation logic
+│   ├── common/                 # System base & Python deps
+│   ├── docker/                 # Docker & Docker Compose Plugin
+│   ├── application/            # Flask App & DB (Port 8081)
+│   ├── backup/                 # Backup automation scripts
+│   └── restore/                # Recovery procedures
+├── playbooks/                  # Specific action playbooks
+└── docs/                       # Comprehensive documentation
 ```
 
 ## 🎓 Key Features

@@ -56,11 +56,11 @@ ansible-playbook -i inventories/staging/hosts site.yml --ask-become-pass
 ### 4. Verify (30 seconds)
 
 ```bash
-# Check application
-curl http://YOUR_HOST_IP:8080/health
+# Check application on the new port 8081
+curl http://localhost:8081/health
 
 # Or open in browser
-firefox http://YOUR_HOST_IP:8080
+firefox http://localhost:8081
 ```
 
 ## Test Disaster Recovery
