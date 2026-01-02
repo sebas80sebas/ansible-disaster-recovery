@@ -220,6 +220,25 @@ Post-recovery health checks ensure application integrity.
 - ✅ No hardcoded credentials
 - ✅ Principle of least privilege
 
+## 🛠️ Troubleshooting & Ubuntu 24.04 Tips
+
+During the setup on modern Ubuntu systems (like 24.04 Noble), several adjustments were made to ensure compatibility:
+
+### 1. Python & PEP 668
+Modern Ubuntu versions block `pip install` outside of virtual environments. We modified the `common` role to use official Ubuntu packages (`python3-docker`, `python3-yaml`) instead of `pip`.
+
+### 2. Docker Repository Conflict
+If you encounter `Conflicting values set for option Signed-By`, ensure you remove old Docker list files:
+```bash
+sudo rm -f /etc/apt/sources.list.d/docker.list /etc/apt/sources.list.d/docker.sources
+```
+
+### 3. Third-party Repository Errors
+Ansible requires a clean `apt update`. If deployment fails at "Update apt cache", manually run `sudo apt update` and remove any failing PPAs or repositories in `/etc/apt/sources.list.d/`.
+
+### 4. Docker Template Escaping
+Docker uses `{{.Names}}` which conflicts with Ansible's Jinja2. We used `{% raw %} ... {% endraw %}` blocks in script templates to protect Docker's syntax.
+
 ## 🧪 Testing
 
 Run the complete test suite:

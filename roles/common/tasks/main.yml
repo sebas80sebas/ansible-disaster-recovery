@@ -18,6 +18,8 @@
       - software-properties-common
       - python3
       - python3-pip
+      - python3-docker
+      - python3-yaml
       - git
       - vim
       - htop
@@ -27,14 +29,6 @@
       - logrotate
     state: present
   when: ansible_os_family == "Debian"
-
-- name: Install Python Docker library
-  pip:
-    name:
-      - docker
-      - docker-compose
-    state: present
-    executable: pip3
 
 - name: Set timezone
   timezone:

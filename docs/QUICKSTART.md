@@ -4,9 +4,9 @@ Get up and running with disaster recovery in 5 minutes!
 
 ## Prerequisites
 
-- Ansible 2.9+ installed on your controller
-- Ubuntu 20.04+ target host
-- SSH access to target host
+- Ansible 2.10+ installed on your controller
+- Ubuntu 20.04/22.04/24.04 target host
+- SSH access or local execution permissions
 
 ## 5-Minute Setup
 
@@ -36,10 +36,6 @@ backup_servers
 env_name=staging
 ansible_python_interpreter=/usr/bin/python3
 EOF
-
-# OR edit inventory with your remote host IP
-vim inventories/staging/hosts
-# Change: ansible_host=192.168.1.10 to your IP
 ```
 
 ### 2. Test Connectivity (30 seconds)
@@ -51,8 +47,11 @@ make ping ENV=staging
 ### 3. Deploy Everything (3 minutes)
 
 ```bash
-ansible-playbook -i inventories/staging/hosts site.yml
+# Use --ask-become-pass to provide your sudo password
+ansible-playbook -i inventories/staging/hosts site.yml --ask-become-pass
 ```
+
+> **Note for Ubuntu 24.04**: If you see "externally-managed-environment" errors, the project has already been updated to use `apt` packages for Docker libraries. No manual fix is required.
 
 ### 4. Verify (30 seconds)
 
