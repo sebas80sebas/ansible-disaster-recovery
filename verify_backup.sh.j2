@@ -1,0 +1,66 @@
+#!/bin/bash
+# Verify Backup Script
+# Managed by Ansible - Do not edit manually
+
+set -euo pipefail
+
+BACKUP_DIR="${1:-{{ backup_base_path }}/latest}"
+
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+}
+
+error() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $1" >&2
+}
+
+log "Verifying backup: ${BACKUP_DIR}"
+
+# Check if backup directory exists
+if [ ! -d "${BACKUP_DIR}" ]; then
+    error "Backup directory does not exist: ${BACKUP_DIR}"
+    exit 1
+fi
+
+# Verify backup structure
+REQUIRED_DIRS=("volumes" "database" "configs")
+for dir in "${REQUIRED_DIRS[@]}"; do
+    if [ ! -d "${BACKUP_DIR}/${dir}" ]; then
+        error "Missing required directory: ${dir}"
+        exit 1
+    fi
+    log "✓ Directory exists: ${dir}"
+done
+
+# Verify volume backups
+if [ -f "${BACKUP_DIR}/volumes/db_data.tar.gz" ]; then
+    if tar -tzf "${BACKUP_DIR}/volumes/db_data.tar.gz" &>/dev/null; then
+        log "✓ Database volume backup is valid"
+    else
+        error "Database volume backup is corrupted"
+        exit 1
+    fi
+fi
+
+# Verify database dump
+DB_FILE="${BACKUP_DIR}/database/{{ db_name }}.sql"
+if [ -f "${DB_FILE}.gz" ]; then
+    DB_FILE="${DB_FILE}.gz"
+fi
+
+if [ -f "${DB_FILE}" ]; then
+    log "✓ Database dump exists: $(du -h ${DB_FILE} | cut -f1)"
+else
+    error "Database dump not found"
+    exit 1
+fi
+
+# Verify metadata
+if [ -f "${BACKUP_DIR}/backup_metadata.json" ]; then
+    log "✓ Backup metadata exists"
+else
+    warning "Backup metadata missing"
+fi
+
+log "Backup verification completed successfully"
+exit 0

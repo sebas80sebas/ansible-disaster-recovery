@@ -1,0 +1,95 @@
+---
+# Common role - Base system configuration
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "Debian"
+
+- name: Install essential packages
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - python3
+      - python3-pip
+      - git
+      - vim
+      - htop
+      - net-tools
+      - rsync
+      - cron
+      - logrotate
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install Python Docker library
+  pip:
+    name:
+      - docker
+      - docker-compose
+    state: present
+    executable: pip3
+
+- name: Set timezone
+  timezone:
+    name: "{{ timezone }}"
+
+- name: Ensure NTP is configured
+  apt:
+    name: chrony
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Configure chrony NTP
+  template:
+    src: chrony.conf.j2
+    dest: /etc/chrony/chrony.conf
+    mode: '0644'
+  notify: restart chrony
+
+- name: Create application directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "/opt/{{ app_name }}"
+    - "/opt/{{ app_name }}/data"
+    - "/opt/{{ app_name }}/config"
+    - "{{ backup_base_path }}"
+    - "{{ backup_base_path }}/archives"
+    - "/var/log/{{ app_name }}"
+
+- name: Configure logrotate for application
+  template:
+    src: logrotate.j2
+    dest: "/etc/logrotate.d/{{ app_name }}"
+    mode: '0644'
+
+- name: Set system limits
+  pam_limits:
+    domain: "*"
+    limit_type: "{{ item.type }}"
+    limit_item: "{{ item.item }}"
+    value: "{{ item.value }}"
+  loop:
+    - { type: 'soft', item: 'nofile', value: '65536' }
+    - { type: 'hard', item: 'nofile', value: '65536' }
+    - { type: 'soft', item: 'nproc', value: '4096' }
+    - { type: 'hard', item: 'nproc', value: '4096' }
+
+- name: Ensure services are enabled
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  loop:
+    - cron
+    - rsyslog
+  ignore_errors: yes

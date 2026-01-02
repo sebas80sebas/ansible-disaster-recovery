@@ -1,0 +1,55 @@
+---
+# Disaster Recovery Playbook
+# Complete system restoration from backup
+
+- name: Disaster Recovery - Full System Restore
+  hosts: app_servers
+  gather_facts: true
+  become: true
+  
+  pre_tasks:
+    - name: Display disaster recovery warning
+      debug:
+        msg:
+          - "=========================================="
+          - "⚠️  DISASTER RECOVERY IN PROGRESS ⚠️"
+          - "=========================================="
+          - "This will:"
+          - "  - Stop all running containers"
+          - "  - Remove all existing volumes"
+          - "  - Restore from the latest backup"
+          - ""
+          - "Environment: {{ env_name }}"
+          - "Target Host: {{ inventory_hostname }}"
+          - "=========================================="
+      tags: always
+    
+    - name: Pause for confirmation (can skip with --skip-tags=confirm)
+      pause:
+        prompt: "Press ENTER to continue with disaster recovery or Ctrl+C to abort"
+      tags: confirm
+  
+  roles:
+    - role: restore
+      tags: restore
+  
+  post_tasks:
+    - name: Final verification
+      uri:
+        url: "http://localhost:{{ app_port }}/health"
+        return_content: yes
+      register: final_check
+    
+    - name: Display final status
+      debug:
+        msg:
+          - "=========================================="
+          - "Disaster Recovery Complete!"
+          - "=========================================="
+          - "Application Status: {{ final_check.json.status }}"
+          - "Database Status: {{ final_check.json.database }}"
+          - "Timestamp: {{ final_check.json.timestamp }}"
+          - ""
+          - "Application is now accessible at:"
+          - "http://{{ ansible_host }}:{{ app_port }}"
+          - "=========================================="

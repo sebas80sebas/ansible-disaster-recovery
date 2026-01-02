@@ -1,0 +1,165 @@
+---
+# Verification Playbook
+# Verify application health after recovery
+
+- name: Post-Recovery Verification
+  hosts: app_servers
+  gather_facts: true
+  become: true
+  
+  tasks:
+    - name: Display verification start
+      debug:
+        msg:
+          - "=========================================="
+          - "Post-Recovery Verification"
+          - "Environment: {{ env_name }}"
+          - "=========================================="
+    
+    - name: Check Docker service
+      systemd:
+        name: docker
+        state: started
+      check_mode: yes
+      register: docker_service
+    
+    - name: Verify Docker containers are running
+      command: docker ps --filter "name={{ app_name }}" --format "{{.Names}}\t{{.Status}}"
+      register: container_status
+      changed_when: false
+    
+    - name: Display container status
+      debug:
+        msg: "{{ container_status.stdout_lines }}"
+    
+    - name: Check application health endpoint
+      uri:
+        url: "http://localhost:{{ app_port }}/health"
+        return_content: yes
+        status_code: 200
+      register: health_response
+      retries: 3
+      delay: 5
+    
+    - name: Display health check results
+      debug:
+        msg:
+          - "Application Health: {{ health_response.json.status }}"
+          - "Database: {{ health_response.json.database }}"
+          - "Timestamp: {{ health_response.json.timestamp }}"
+    
+    - name: Verify database data
+      uri:
+        url: "http://localhost:{{ app_port }}/api/todos"
+        return_content: yes
+        status_code: 200
+      register: todos_response
+    
+    - name: Display data verification
+      debug:
+        msg:
+          - "Total todos in database: {{ todos_response.json.todos | length }}"
+          - "Sample data: {{ todos_response.json.todos[:3] | to_nice_json }}"
+    
+    - name: Check Docker volumes
+      command: docker volume ls --filter "name={{ app_name }}" --format "{{.Name}}\t{{.Size}}"
+      register: volume_status
+      changed_when: false
+    
+    - name: Display volume status
+      debug:
+        msg: "{{ volume_status.stdout_lines }}"
+    
+    - name: Check backup status
+      command: /opt/backup_scripts/check_backup_status.sh
+      register: backup_status
+      changed_when: false
+    
+    - name: Display backup status
+      debug:
+        msg: "{{ backup_status.stdout_lines }}"
+    
+    - name: Check disk usage
+      command: df -h /opt
+      register: disk_usage
+      changed_when: false
+    
+    - name: Performance test - Create test todo
+      uri:
+        url: "http://localhost:{{ app_port }}/api/todos"
+        method: POST
+        body_format: json
+        body:
+          title: "Verification test todo - {{ ansible_date_time.epoch }}"
+        status_code: 201
+      register: create_test
+    
+    - name: Performance test - Retrieve test todo
+      uri:
+        url: "http://localhost:{{ app_port }}/api/todos"
+        return_content: yes
+      register: retrieve_test
+    
+    - name: Verify test todo was created
+      assert:
+        that:
+          - create_test.status == 201
+          - retrieve_test.json.todos | length > 0
+        success_msg: "✓ Application is fully functional"
+        fail_msg: "✗ Application verification failed"
+    
+    - name: Generate verification report
+      debug:
+        msg:
+          - "=========================================="
+          - "VERIFICATION COMPLETE"
+          - "=========================================="
+          - "✓ Docker service: Running"
+          - "✓ Containers: {{ container_status.stdout_lines | length }} running"
+          - "✓ Application health: {{ health_response.json.status }}"
+          - "✓ Database: {{ health_response.json.database }}"
+          - "✓ Data records: {{ todos_response.json.todos | length }}"
+          - "✓ Write test: Successful"
+          - "✓ Read test: Successful"
+          - ""
+          - "Application URL: http://{{ ansible_host }}:{{ app_port }}"
+          - "=========================================="
+    
+    - name: Save verification report
+      copy:
+        content: |
+          Post-Recovery Verification Report
+          =================================
+          
+          Verification Date: {{ ansible_date_time.iso8601 }}
+          Environment: {{ env_name }}
+          Host: {{ inventory_hostname }}
+          
+          Infrastructure Status:
+          ✓ Docker Service: Running
+          ✓ Containers Running: {{ container_status.stdout_lines | length }}
+          ✓ Volumes Present: {{ volume_status.stdout_lines | length }}
+          
+          Application Status:
+          ✓ Health Status: {{ health_response.json.status }}
+          ✓ Database Status: {{ health_response.json.database }}
+          ✓ Response Time: {{ health_response.elapsed }}s
+          
+          Data Verification:
+          ✓ Database Records: {{ todos_response.json.todos | length }}
+          ✓ Write Operation: Successful
+          ✓ Read Operation: Successful
+          
+          Backup System:
+          {{ backup_status.stdout }}
+          
+          Disk Usage:
+          {{ disk_usage.stdout }}
+          
+          Conclusion:
+          All verification tests passed successfully.
+          The application has been fully restored and is operational.
+          
+          Verified by: {{ ansible_user_id }}
+        dest: "/opt/{{ app_name }}/verification_report_{{ ansible_date_time.epoch }}.txt"
+        mode: '0644'

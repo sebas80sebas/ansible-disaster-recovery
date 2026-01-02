@@ -1,0 +1,40 @@
+#!/bin/bash
+# Cleanup Old Backups Script
+# Managed by Ansible - Do not edit manually
+
+set -euo pipefail
+
+BACKUP_BASE="{{ backup_base_path }}"
+RETENTION_DAYS={{ backup_retention_days }}
+
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+}
+
+log "Starting backup cleanup process"
+log "Retention period: ${RETENTION_DAYS} days"
+
+# Find and delete backups older than retention period
+DELETED_COUNT=0
+FREED_SPACE=0
+
+while IFS= read -r backup_dir; do
+    BACKUP_SIZE=$(du -sb "$backup_dir" | cut -f1)
+    log "Deleting old backup: $backup_dir ($(du -sh "$backup_dir" | cut -f1))"
+    rm -rf "$backup_dir"
+    DELETED_COUNT=$((DELETED_COUNT + 1))
+    FREED_SPACE=$((FREED_SPACE + BACKUP_SIZE))
+done < <(find "${BACKUP_BASE}" -maxdepth 1 -type d -name "20*" -mtime +${RETENTION_DAYS})
+
+if [ ${DELETED_COUNT} -gt 0 ]; then
+    FREED_MB=$((FREED_SPACE / 1024 / 1024))
+    log "Cleanup completed: Deleted ${DELETED_COUNT} old backup(s), freed ${FREED_MB} MB"
+else
+    log "No old backups to delete"
+fi
+
+# Count remaining backups
+REMAINING=$(find "${BACKUP_BASE}" -maxdepth 1 -type d -name "20*" | wc -l)
+log "Remaining backups: ${REMAINING}"
+
+exit 0

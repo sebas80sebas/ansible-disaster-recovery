@@ -1,0 +1,50 @@
+---
+# Manual backup playbook
+# Execute on-demand backups
+
+- name: Execute Manual Backup
+  hosts: backup_servers
+  gather_facts: true
+  become: true
+  
+  tasks:
+    - name: Display backup information
+      debug:
+        msg:
+          - "=========================================="
+          - "Manual Backup Execution"
+          - "Environment: {{ env_name }}"
+          - "Target: {{ inventory_hostname }}"
+          - "=========================================="
+    
+    - name: Execute backup script
+      command: /opt/backup_scripts/backup.sh
+      register: backup_result
+      changed_when: true
+    
+    - name: Display backup output
+      debug:
+        msg: "{{ backup_result.stdout_lines }}"
+    
+    - name: Verify backup was created
+      stat:
+        path: "{{ backup_base_path }}/latest"
+      register: backup_check
+    
+    - name: Execute backup verification
+      command: /opt/backup_scripts/verify_backup.sh
+      register: verify_result
+      changed_when: false
+    
+    - name: Display verification results
+      debug:
+        msg: "{{ verify_result.stdout_lines }}"
+    
+    - name: Get backup statistics
+      command: /opt/backup_scripts/check_backup_status.sh
+      register: stats_result
+      changed_when: false
+    
+    - name: Display backup statistics
+      debug:
+        msg: "{{ stats_result.stdout_lines }}"

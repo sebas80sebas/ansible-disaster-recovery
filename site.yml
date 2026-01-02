@@ -1,0 +1,65 @@
+---
+# Main playbook for complete infrastructure deployment
+# This playbook deploys the entire stack from scratch
+
+- name: Complete Infrastructure Deployment
+  hosts: all
+  gather_facts: true
+  become: true
+  
+  pre_tasks:
+    - name: Display deployment information
+      debug:
+        msg:
+          - "=========================================="
+          - "Deploying to environment: {{ env_name }}"
+          - "Target host: {{ inventory_hostname }}"
+          - "Timestamp: {{ ansible_date_time.iso8601 }}"
+          - "=========================================="
+      tags: always
+
+    - name: Wait for system to be ready
+      wait_for_connection:
+        timeout: 300
+      tags: always
+
+  roles:
+    - role: common
+      tags: common
+      
+    - role: docker
+      tags: docker
+      
+    - role: application
+      tags: application
+      
+    - role: backup
+      tags: backup
+
+  post_tasks:
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "=========================================="
+          - "Deployment completed successfully!"
+          - "Application URL: http://{{ ansible_host }}:{{ app_port }}"
+          - "Environment: {{ env_name }}"
+          - "=========================================="
+      tags: always
+
+    - name: Save deployment metadata
+      copy:
+        content: |
+          Deployment Information
+          ======================
+          Environment: {{ env_name }}
+          Date: {{ ansible_date_time.iso8601 }}
+          Host: {{ inventory_hostname }}
+          Application: {{ app_name }}
+          Version: {{ app_version }}
+          
+          Deployed by: {{ ansible_user_id }}
+          Ansible Version: {{ ansible_version.full }}
+        dest: /opt/{{ app_name }}/deployment_info.txt
+        mode: '0644'
+      tags: always

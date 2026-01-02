@@ -1,0 +1,77 @@
+---
+# Application role - Deploy containerized application
+
+- name: Create application directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "/opt/{{ app_name }}"
+    - "/opt/{{ app_name }}/app"
+    - "/opt/{{ app_name }}/db_data"
+
+- name: Copy application files
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: 'docker-compose.yml.j2', dest: '/opt/{{ app_name }}/docker-compose.yml', mode: '0644' }
+    - { src: 'app.py.j2', dest: '/opt/{{ app_name }}/app/app.py', mode: '0644' }
+    - { src: 'requirements.txt.j2', dest: '/opt/{{ app_name }}/app/requirements.txt', mode: '0644' }
+    - { src: 'Dockerfile.j2', dest: '/opt/{{ app_name }}/app/Dockerfile', mode: '0644' }
+    - { src: 'init.sql.j2', dest: '/opt/{{ app_name }}/init.sql', mode: '0644' }
+  notify: restart application
+
+- name: Create .env file with secrets
+  template:
+    src: env.j2
+    dest: "/opt/{{ app_name }}/.env"
+    mode: '0600'
+  notify: restart application
+
+- name: Stop existing containers (idempotent)
+  community.docker.docker_compose:
+    project_src: "/opt/{{ app_name }}"
+    state: absent
+  ignore_errors: yes
+
+- name: Build and start application containers
+  community.docker.docker_compose:
+    project_src: "/opt/{{ app_name }}"
+    state: present
+    build: yes
+    pull: yes
+  register: compose_output
+
+- name: Wait for database to be ready
+  wait_for:
+    host: localhost
+    port: "{{ db_port }}"
+    delay: 5
+    timeout: 60
+
+- name: Wait for application to be ready
+  wait_for:
+    host: localhost
+    port: "{{ app_port }}"
+    delay: 5
+    timeout: 60
+
+- name: Verify application is responding
+  uri:
+    url: "http://localhost:{{ app_port }}/health"
+    status_code: 200
+    timeout: 10
+  register: health_check
+  retries: 5
+  delay: 5
+  until: health_check.status == 200
+
+- name: Display application status
+  debug:
+    msg:
+      - "Application deployed successfully!"
+      - "URL: http://{{ ansible_host }}:{{ app_port }}"
+      - "Health: http://{{ ansible_host }}:{{ app_port }}/health"

@@ -1,0 +1,40 @@
+---
+# Environment specific variables for production
+
+# Application configuration
+app_name: "todoapp"
+app_port: 8080
+app_version: "1.0.0"
+app_replicas: 2
+
+# Database configuration
+db_name: "tododb"
+db_user: "todouser"
+db_password: "{{ vault_db_password }}"  # Stored in vault.yml
+db_port: 5432
+db_version: "14-alpine"
+
+# Backup configuration
+backup_enabled: true
+backup_schedule: "0 */3 * * *"  # Every 3 hours
+backup_retention_days: 30
+backup_base_path: "/opt/backups"
+backup_compression: true
+backup_remote_sync: false  # Enable for off-site backups
+
+# Docker configuration
+docker_compose_version: "2.23.0"
+docker_network_name: "app_network"
+
+# System configuration
+timezone: "UTC"
+ntp_servers:
+  - "0.pool.ntp.org"
+  - "1.pool.ntp.org"
+
+# Monitoring
+enable_monitoring: true
+
+# Security
+firewall_enabled: true
+fail2ban_enabled: true

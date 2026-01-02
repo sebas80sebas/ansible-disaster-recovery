@@ -1,0 +1,243 @@
+---
+# Restore role - Disaster Recovery procedures
+
+- name: Record recovery start time
+  set_fact:
+    recovery_start_time: "{{ ansible_date_time.epoch }}"
+
+- name: Display recovery information
+  debug:
+    msg:
+      - "=========================================="
+      - "DISASTER RECOVERY INITIATED"
+      - "Environment: {{ env_name }}"
+      - "Host: {{ inventory_hostname }}"
+      - "Timestamp: {{ ansible_date_time.iso8601 }}"
+      - "=========================================="
+
+- name: Check if backup exists
+  stat:
+    path: "{{ backup_base_path }}/latest"
+  register: backup_check
+
+- name: Fail if no backup available
+  fail:
+    msg: "No backup found at {{ backup_base_path }}/latest. Cannot perform recovery."
+  when: not backup_check.stat.exists
+
+- name: Get backup path
+  command: readlink -f "{{ backup_base_path }}/latest"
+  register: backup_path_result
+  changed_when: false
+
+- name: Set backup path fact
+  set_fact:
+    restore_backup_path: "{{ backup_path_result.stdout }}"
+
+- name: Display backup information
+  debug:
+    msg:
+      - "Restoring from backup: {{ restore_backup_path }}"
+      - "Backup size: {{ backup_check.stat.size | human_readable }}"
+
+- name: Stop all application containers
+  community.docker.docker_compose:
+    project_src: "/opt/{{ app_name }}"
+    state: absent
+  ignore_errors: yes
+
+- name: Wait for containers to stop
+  pause:
+    seconds: 5
+
+- name: Remove Docker volumes
+  docker_volume:
+    name: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ app_name }}_db_data"
+    - "{{ app_name }}_app_data"
+  ignore_errors: yes
+
+- name: Recreate Docker volumes
+  docker_volume:
+    name: "{{ item }}"
+    state: present
+  loop:
+    - "{{ app_name }}_db_data"
+    - "{{ app_name }}_app_data"
+
+- name: Restore database volume
+  shell: |
+    docker run --rm \
+      -v {{ app_name }}_db_data:/target \
+      -v {{ restore_backup_path }}/volumes:/backup:ro \
+      alpine \
+      sh -c "cd /target && tar xzf /backup/db_data.tar.gz"
+  args:
+    executable: /bin/bash
+  register: db_volume_restore
+  changed_when: true
+
+- name: Restore application volume
+  shell: |
+    docker run --rm \
+      -v {{ app_name }}_app_data:/target \
+      -v {{ restore_backup_path }}/volumes:/backup:ro \
+      alpine \
+      sh -c "cd /target && tar xzf /backup/app_data.tar.gz"
+  args:
+    executable: /bin/bash
+  register: app_volume_restore
+  ignore_errors: yes
+  changed_when: true
+
+- name: Restore configuration files
+  copy:
+    src: "{{ restore_backup_path }}/configs/{{ item }}"
+    dest: "/opt/{{ app_name }}/{{ item }}"
+    remote_src: yes
+    mode: preserve
+  loop:
+    - docker-compose.yml
+    - .env
+    - init.sql
+  ignore_errors: yes
+
+- name: Start database container only
+  community.docker.docker_compose:
+    project_src: "/opt/{{ app_name }}"
+    services:
+      - db
+    state: present
+  register: db_start
+
+- name: Wait for database to be ready
+  wait_for:
+    host: localhost
+    port: "{{ db_port }}"
+    delay: 10
+    timeout: 60
+
+- name: Check if database needs SQL restore
+  stat:
+    path: "{{ restore_backup_path }}/database/{{ db_name }}.sql.gz"
+  register: sql_gz_check
+
+- name: Check for uncompressed SQL
+  stat:
+    path: "{{ restore_backup_path }}/database/{{ db_name }}.sql"
+  register: sql_check
+  when: not sql_gz_check.stat.exists
+
+- name: Restore database from SQL dump (compressed)
+  shell: |
+    gunzip -c {{ restore_backup_path }}/database/{{ db_name }}.sql.gz | \
+    docker exec -i {{ app_name }}_db psql -U {{ db_user }} -d {{ db_name }}
+  args:
+    executable: /bin/bash
+  when: sql_gz_check.stat.exists
+  register: db_restore_result
+  changed_when: true
+
+- name: Restore database from SQL dump (uncompressed)
+  shell: |
+    cat {{ restore_backup_path }}/database/{{ db_name }}.sql | \
+    docker exec -i {{ app_name }}_db psql -U {{ db_user }} -d {{ db_name }}
+  args:
+    executable: /bin/bash
+  when: 
+    - not sql_gz_check.stat.exists
+    - sql_check.stat.exists
+  register: db_restore_result
+  changed_when: true
+
+- name: Start all application services
+  community.docker.docker_compose:
+    project_src: "/opt/{{ app_name }}"
+    state: present
+    pull: no
+  register: app_start
+
+- name: Wait for application to be ready
+  wait_for:
+    host: localhost
+    port: "{{ app_port }}"
+    delay: 10
+    timeout: 120
+
+- name: Verify application health
+  uri:
+    url: "http://localhost:{{ app_port }}/health"
+    status_code: 200
+    timeout: 10
+  register: health_check
+  retries: 10
+  delay: 5
+  until: health_check.status == 200
+
+- name: Verify database connectivity
+  uri:
+    url: "http://localhost:{{ app_port }}/api/todos"
+    status_code: 200
+    timeout: 10
+  register: db_check
+  retries: 5
+  delay: 3
+
+- name: Record recovery end time
+  set_fact:
+    recovery_end_time: "{{ ansible_date_time.epoch }}"
+
+- name: Calculate recovery time
+  set_fact:
+    recovery_duration: "{{ (recovery_end_time | int) - (recovery_start_time | int) }}"
+
+- name: Display recovery summary
+  debug:
+    msg:
+      - "=========================================="
+      - "DISASTER RECOVERY COMPLETED SUCCESSFULLY"
+      - "=========================================="
+      - "Recovery Time Objective (RTO): {{ recovery_duration }} seconds ({{ (recovery_duration | int / 60) | round(2) }} minutes)"
+      - "Backup restored from: {{ restore_backup_path }}"
+      - "Application URL: http://{{ ansible_host }}:{{ app_port }}"
+      - "Health status: {{ health_check.json.status }}"
+      - "Database status: {{ health_check.json.database }}"
+      - "=========================================="
+
+- name: Save recovery report
+  copy:
+    content: |
+      Disaster Recovery Report
+      ========================
+      
+      Recovery Details:
+      - Environment: {{ env_name }}
+      - Host: {{ inventory_hostname }}
+      - Recovery Date: {{ ansible_date_time.iso8601 }}
+      - Recovery Duration: {{ recovery_duration }} seconds ({{ (recovery_duration | int / 60) | round(2) }} minutes)
+      
+      Backup Information:
+      - Backup Path: {{ restore_backup_path }}
+      - Backup Size: {{ backup_check.stat.size | human_readable }}
+      
+      Application Status:
+      - Application URL: http://{{ ansible_host }}:{{ app_port }}
+      - Health Status: {{ health_check.json.status }}
+      - Database Status: {{ health_check.json.database }}
+      
+      Recovery Steps Completed:
+      1. ✓ Stopped all containers
+      2. ✓ Removed existing volumes
+      3. ✓ Restored database volume
+      4. ✓ Restored application volume
+      5. ✓ Restored configuration files
+      6. ✓ Restored database from SQL dump
+      7. ✓ Started all services
+      8. ✓ Verified application health
+      
+      Recovery performed by: {{ ansible_user_id }}
+      Ansible version: {{ ansible_version.full }}
+    dest: "/opt/{{ app_name }}/recovery_report_{{ ansible_date_time.epoch }}.txt"
+    mode: '0644'

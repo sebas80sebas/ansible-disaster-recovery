@@ -1,0 +1,8 @@
+---
+# Handlers for common role
+
+- name: restart chrony
+  systemd:
+    name: chrony
+    state: restarted
+    enabled: yes

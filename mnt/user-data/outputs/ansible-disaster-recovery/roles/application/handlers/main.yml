@@ -1,0 +1,8 @@
+---
+# Handlers for application role
+
+- name: restart application
+  community.docker.docker_compose:
+    project_src: "/opt/{{ app_name }}"
+    state: present
+    restarted: yes

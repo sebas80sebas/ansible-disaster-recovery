@@ -1,0 +1,41 @@
+#!/bin/bash
+# Check Backup Status Script
+# Managed by Ansible
+
+set -euo pipefail
+
+BACKUP_BASE="{{ backup_base_path }}"
+
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+}
+
+log "Backup Status Report"
+log "===================="
+
+# Check if latest backup exists
+if [ -L "${BACKUP_BASE}/latest" ]; then
+    LATEST=$(readlink "${BACKUP_BASE}/latest")
+    log "Latest backup: ${LATEST}"
+    
+    # Check age of latest backup
+    BACKUP_AGE=$(($(date +%s) - $(stat -c %Y "${LATEST}")))
+    BACKUP_AGE_HOURS=$((BACKUP_AGE / 3600))
+    log "Age: ${BACKUP_AGE_HOURS} hours"
+    
+    # Check size
+    BACKUP_SIZE=$(du -sh "${LATEST}" | cut -f1)
+    log "Size: ${BACKUP_SIZE}"
+else
+    log "WARNING: No backups found!"
+fi
+
+# Count total backups
+TOTAL_BACKUPS=$(find "${BACKUP_BASE}" -maxdepth 1 -type d -name "20*" | wc -l)
+log "Total backups: ${TOTAL_BACKUPS}"
+
+# Calculate total backup storage
+TOTAL_SIZE=$(du -sh "${BACKUP_BASE}" | cut -f1)
+log "Total storage used: ${TOTAL_SIZE}"
+
+exit 0

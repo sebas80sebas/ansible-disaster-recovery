@@ -1,0 +1,83 @@
+---
+# Backup role - Automated backup system
+
+- name: Create backup script directory
+  file:
+    path: /opt/backup_scripts
+    state: directory
+    mode: '0755'
+
+- name: Install backup script
+  template:
+    src: backup.sh.j2
+    dest: /opt/backup_scripts/backup.sh
+    mode: '0755'
+
+- name: Install backup verification script
+  template:
+    src: verify_backup.sh.j2
+    dest: /opt/backup_scripts/verify_backup.sh
+    mode: '0755'
+
+- name: Create backup retention cleanup script
+  template:
+    src: cleanup_old_backups.sh.j2
+    dest: /opt/backup_scripts/cleanup_old_backups.sh
+    mode: '0755'
+
+- name: Ensure backup directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ backup_base_path }}"
+    - "{{ backup_base_path }}/archives"
+    - "{{ backup_base_path }}/logs"
+
+- name: Configure automated backup cron job
+  cron:
+    name: "Automated application backup"
+    minute: "{{ backup_schedule.split()[0] }}"
+    hour: "{{ backup_schedule.split()[1] }}"
+    day: "{{ backup_schedule.split()[2] }}"
+    month: "{{ backup_schedule.split()[3] }}"
+    weekday: "{{ backup_schedule.split()[4] }}"
+    job: "/opt/backup_scripts/backup.sh >> {{ backup_base_path }}/logs/backup.log 2>&1"
+    state: "{{ 'present' if backup_enabled else 'absent' }}"
+
+- name: Configure backup cleanup cron job
+  cron:
+    name: "Cleanup old backups"
+    minute: "0"
+    hour: "2"
+    job: "/opt/backup_scripts/cleanup_old_backups.sh >> {{ backup_base_path }}/logs/cleanup.log 2>&1"
+    state: "{{ 'present' if backup_enabled else 'absent' }}"
+
+- name: Create backup status check script
+  template:
+    src: check_backup_status.sh.j2
+    dest: /opt/backup_scripts/check_backup_status.sh
+    mode: '0755'
+
+- name: Perform initial backup
+  command: /opt/backup_scripts/backup.sh
+  register: initial_backup
+  changed_when: true
+
+- name: Display backup result
+  debug:
+    msg: "Initial backup completed: {{ initial_backup.stdout_lines[-5:] if initial_backup.stdout_lines else 'No output' }}"
+
+- name: Verify backup was created
+  stat:
+    path: "{{ backup_base_path }}/latest"
+  register: backup_check
+
+- name: Assert backup exists
+  assert:
+    that:
+      - backup_check.stat.exists
+      - backup_check.stat.isdir
+    fail_msg: "Backup directory was not created successfully"
+    success_msg: "Backup system configured and initial backup completed"
