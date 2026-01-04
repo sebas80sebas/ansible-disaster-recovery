@@ -73,6 +73,18 @@ Follow these steps to test the resilience of the system:
 
 5.  **Verify**: Check the URL again. Your data should be back.
 
+### Automated Disaster Recovery Testing
+For a complete and rapid validation of the entire lifecycle, you can run the automated test script. This will perform all the steps above (deploy, data creation, backup, disaster, and restore) in a single execution.
+
+```bash
+# Give execution permissions if needed
+chmod +x scripts/full_dr_test.sh
+
+# Run the complete cycle
+ANSIBLE_OPTS="--ask-become-pass" ./scripts/full_dr_test.sh
+```
+**Note:** Since the script executes multiple Ansible playbooks, you will be prompted for your `BECOME` (sudo) password at each major step.
+
 ## Troubleshooting
 
 ### Common Issues on Ubuntu 24.04

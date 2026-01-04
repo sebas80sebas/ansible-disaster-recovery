@@ -6,8 +6,8 @@ set -euo pipefail
 
 # Configuration
 INVENTORY="${1:-inventories/staging/hosts}"
-APP_HOST="${2:-192.168.1.10}"
-APP_PORT="8080"
+APP_HOST="${2:-localhost}"
+APP_PORT="8081"
 
 # Colors
 RED='\033[0;31m'
@@ -51,7 +51,7 @@ log "Application Port: ${APP_PORT}"
 # Step 1: Deploy Infrastructure
 step "STEP 1: Deploy Infrastructure"
 log "Deploying complete infrastructure from scratch..."
-if ansible-playbook -i "${INVENTORY}" site.yml > /tmp/dr_deploy.log 2>&1; then
+if ansible-playbook -i "${INVENTORY}" site.yml ${ANSIBLE_OPTS:-} > /tmp/dr_deploy.log 2>&1; then
     log "[OK] Infrastructure deployed successfully"
 else
     error "[FAIL] Infrastructure deployment failed"
@@ -93,7 +93,7 @@ log "[OK] Test data created and saved"
 # Step 4: Create Backup
 step "STEP 4: Create Backup"
 log "Creating backup..."
-if ansible-playbook -i "${INVENTORY}" playbooks/backup.yml > /tmp/dr_backup.log 2>&1; then
+if ansible-playbook -i "${INVENTORY}" playbooks/backup.yml ${ANSIBLE_OPTS:-} > /tmp/dr_backup.log 2>&1; then
     log "[OK] Backup created successfully"
 else
     error "[FAIL] Backup creation failed"
@@ -107,8 +107,8 @@ warning "Simulating catastrophic failure..."
 warning "This will destroy all containers and data!"
 sleep 3
 
-if ansible-playbook -i "${INVENTORY}" playbooks/simulate_disaster.yml \
-    --extra-vars '{"confirmation":{"user_input":"destroy"}}' > /tmp/dr_disaster.log 2>&1; then
+if ansible-playbook -i "${INVENTORY}" playbooks/simulate_disaster.yml ${ANSIBLE_OPTS:-} \
+    --extra-vars "confirmation=destroy" > /tmp/dr_disaster.log 2>&1; then
     log "[OK] Disaster simulated successfully"
 else
     error "[FAIL] Disaster simulation failed"
@@ -134,7 +134,7 @@ sleep 2
 RECOVERY_START=$(date +%s)
 log "Recovery started at: $(date -d @${RECOVERY_START} +'%Y-%m-%d %H:%M:%S')"
 
-if ansible-playbook -i "${INVENTORY}" playbooks/restore.yml \
+if ansible-playbook -i "${INVENTORY}" playbooks/restore.yml ${ANSIBLE_OPTS:-} \
     --skip-tags confirm > /tmp/dr_restore.log 2>&1; then
     RECOVERY_END=$(date +%s)
     RECOVERY_TIME=$((RECOVERY_END - RECOVERY_START))
@@ -197,7 +197,7 @@ fi
 # Step 9: Run Verification Playbook
 step "STEP 9: Complete Verification"
 log "Running comprehensive verification..."
-if ansible-playbook -i "${INVENTORY}" playbooks/verify.yml > /tmp/dr_verify.log 2>&1; then
+if ansible-playbook -i "${INVENTORY}" playbooks/verify.yml ${ANSIBLE_OPTS:-} > /tmp/dr_verify.log 2>&1; then
     log "[OK] Verification completed successfully"
 else
     error "[FAIL] Verification failed"
