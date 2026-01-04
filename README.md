@@ -18,44 +18,70 @@ This project demonstrates enterprise-level DevOps practices for automated backup
 
 ## 🚀 Quick Start
 
-### 1. Configure Local Environment
-To test directly on your machine, edit `inventories/staging/hosts`:
-```ini
-[app_servers]
-localhost ansible_connection=local
+### 1. Prerequisites
+- **OS**: Linux (Ubuntu 24.04 LTS recommended)
+- **Tools**: Ansible, Make, Git
+- **User**: Sudo privileges required
 
-[staging:children]
-app_servers
-db_servers
-backup_servers
+### 2. Deploy Infrastructure
+You can use the provided Makefile for convenience. It handles the deployment to your local machine (staging) by default.
+
+```bash
+# Full deployment (installs Docker, App, and Backup scripts)
+make deploy
+# Note: You will be asked for your sudo password.
 ```
 
-### 2. Deploy
+Or manually with Ansible:
 ```bash
-# Deploys App on port 8081
 ansible-playbook -i inventories/staging/hosts site.yml --ask-become-pass
 ```
 
-### 3. Disaster & Recovery Test
+### 3. Verify Deployment
+Access the application at: **http://localhost:8081**
+
+### 4. Disaster Recovery Workflow
+Follow these steps to test the resilience of the system:
+
+1.  **Create Data**: Add some tasks in the web UI.
+2.  **Backup**: Create a secure restore point.
+    ```bash
+    make backup
+    ```
+3.  **Simulate Disaster**: (WARNING: Destructive!) Stops containers and deletes volumes.
+    ```bash
+    make disaster
+    # Type 'destroy' when prompted
+    ```
+4.  **Restore**: Recover everything from the latest backup.
+    ```bash
+    make restore
+    ```
+5.  **Verify**: Check the URL again. Your data should be back.
+
+## 🛠️ Troubleshooting
+
+### Common Issues on Ubuntu 24.04
+
+#### 1. PPA Repository Errors (apt update fails)
+If `make deploy` fails during the "Update apt cache" task with errors about unsafe repositories (e.g., `team-xbmc/ppa`), you need to remove the conflicting PPA from your system:
 ```bash
-make backup ENV=staging    # Create a restore point
-make disaster ENV=staging  # Delete all data
-make restore ENV=staging   # Bring it back to life
+sudo add-apt-repository --remove ppa:team-xbmc/ppa
+# Or manually check /etc/apt/sources.list.d/
 ```
 
-## 📊 Recovery Metrics (RTO)
+#### 2. Docker Compose Errors
+The project is optimized for **Docker Compose v2** (Plugin). 
+- If you see `ModuleNotFoundError: No module named 'compose'`, it means Ansible is trying to use the legacy Python module. 
+- **Fix**: We have updated the playbooks to use `shell: docker compose` commands directly, which is more robust. Ensure you have the `docker-compose-plugin` installed (handled automatically by the `docker` role).
 
-| Operation | Time | Description |
-|-----------|------|-------------|
-| Full Backup | 2 min | DB dump + Volume compression |
-| Recovery | 3-5 min | Restore + Container restart |
-| **Total RTO** | **< 10 min** | From crash to fully operational |
+#### 3. "Force" Parameter Error
+If you encounter `Unsupported parameters for (docker_volume) module: force`, it is because recent Ansible versions deprecated this parameter.
+- **Fix**: The current `simulate_disaster.yml` playbook has been patched to remove this parameter. Update your repo if you see this.
 
-## 🛠️ Troubleshooting & Ubuntu 24.04 Tips
-
-- **Python Errors**: The project uses `python3-docker` system packages to avoid `externally-managed-environment` errors.
-- **Docker Repository**: If you see GPG conflicts, the automation handles `Signed-By` correctly, but you may need to clean old lists in `/etc/apt/sources.list.d/`.
-- **Port Conflict**: Default port is **8081** to avoid conflicts with common exporters.
+#### 4. Makefile "read" Error
+If `make restore` fails with `read: arg count`, it's because `/bin/sh` (dash) doesn't support `read -p`.
+- **Fix**: The Makefile now explicitly uses `SHELL := /bin/bash` to ensure compatibility.
 
 ## 📁 Project Structure
 

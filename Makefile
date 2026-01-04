@@ -1,5 +1,8 @@
 .PHONY: help deploy backup restore disaster verify test clean
 
+# Ensure we use bash for shell commands (needed for read -p)
+SHELL := /bin/bash
+
 # Default environment
 ENV ?= staging
 INVENTORY = inventories/$(ENV)/hosts
