@@ -41,9 +41,9 @@
       - "Backup size: {{ backup_check.stat.size | human_readable }}"
 
 - name: Stop all application containers
-  community.docker.docker_compose:
-    project_src: "/opt/{{ app_name }}"
-    state: absent
+  shell:
+    cmd: docker compose down
+    chdir: "/opt/{{ app_name }}"
   ignore_errors: yes
 
 - name: Wait for containers to stop
@@ -105,11 +105,9 @@
   ignore_errors: yes
 
 - name: Start database container only
-  community.docker.docker_compose:
-    project_src: "/opt/{{ app_name }}"
-    services:
-      - db
-    state: present
+  shell:
+    cmd: docker compose up -d db
+    chdir: "/opt/{{ app_name }}"
   register: db_start
 
 - name: Wait for database to be ready
@@ -153,10 +151,9 @@
   changed_when: true
 
 - name: Start all application services
-  community.docker.docker_compose:
-    project_src: "/opt/{{ app_name }}"
-    state: present
-    pull: no
+  shell:
+    cmd: docker compose up -d
+    chdir: "/opt/{{ app_name }}"
   register: app_start
 
 - name: Wait for application to be ready
