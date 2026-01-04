@@ -24,7 +24,7 @@
       register: docker_service
     
     - name: Verify Docker containers are running
-      command: docker ps --filter "name={{ app_name }}" --format "{{.Names}}\t{{.Status}}"
+      command: docker ps --filter "name={{ app_name }}" --format "{{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}"
       register: container_status
       changed_when: false
     
@@ -62,7 +62,7 @@
           - "Sample data: {{ todos_response.json.todos[:3] | to_nice_json }}"
     
     - name: Check Docker volumes
-      command: docker volume ls --filter "name={{ app_name }}" --format "{{.Name}}\t{{.Size}}"
+      command: docker volume ls --filter "name={{ app_name }}" --format "{{ '{{' }}.Name{{ '}}' }}\t{{ '{{' }}.Size{{ '}}' }}"
       register: volume_status
       changed_when: false
     
