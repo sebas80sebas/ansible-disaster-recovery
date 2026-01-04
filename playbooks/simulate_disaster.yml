@@ -1,13 +1,22 @@
 ---
-# Disaster Simulation Playbook
-# Simulate catastrophic failure for testing recovery procedures
+# Playbook to simulate a catastrophic disaster
+# WARNING: This is DESTRUCTIVE and will cause DATA LOSS
 
 - name: Simulate Disaster - Total Data Loss
-  hosts: app_servers
-  gather_facts: true
+  hosts: all
   become: true
   
+  vars_prompt:
+    - name: confirmation
+      prompt: "Type 'destroy' to continue with disaster simulation or Ctrl+C to abort"
+      private: no
+
   tasks:
+    - name: Check confirmation
+      fail:
+        msg: "Disaster simulation aborted by user"
+      when: confirmation != "destroy"
+
     - name: Display disaster simulation warning
       debug:
         msg:
@@ -28,48 +37,34 @@
           - ""
           - "Environment: {{ env_name }}"
           - "=========================================="
-    
-    - name: Pause for confirmation
-      pause:
-        prompt: |
-          
-          Type 'destroy' to continue with disaster simulation or Ctrl+C to abort
-      register: confirmation
-    
-    - name: Verify confirmation
-      fail:
-        msg: "Disaster simulation aborted - incorrect confirmation"
-      when: confirmation.user_input != "destroy"
-    
+
     - name: Record disaster simulation start time
       set_fact:
-        disaster_start_time: "{{ ansible_date_time.epoch }}"
-    
+        disaster_start_time: "{{ ansible_date_time.iso8601 }}"
+
     - name: Get current application state (before disaster)
       uri:
-        url: "http://localhost:{{ app_port }}/api/todos"
-        return_content: yes
+        url: "http://localhost:{{ app_port }}/health"
         status_code: 200
-      register: pre_disaster_state
+      register: pre_disaster_check
       ignore_errors: yes
-    
+
     - name: Save pre-disaster state
       copy:
-        content: "{{ pre_disaster_state.json | to_nice_json }}"
+        content: "{{ pre_disaster_check | to_nice_json }}"
         dest: "/tmp/pre_disaster_state.json"
-        mode: '0644'
-      when: pre_disaster_state is succeeded
-    
-    - name: Stop all application containers
-      community.docker.docker_compose:
-        project_src: "/opt/{{ app_name }}"
-        state: absent
+      when: pre_disaster_check.status is defined
+
+    - name: Stop and remove application containers
+      shell:
+        cmd: "docker compose down -v"
+        chdir: "/opt/{{ app_name }}"
       ignore_errors: yes
-    
+
     - name: Wait for containers to stop
       pause:
         seconds: 3
-    
+
     - name: Remove Docker volumes (SIMULATING DATA LOSS)
       docker_volume:
         name: "{{ item }}"
@@ -78,7 +73,7 @@
         - "{{ app_name }}_db_data"
         - "{{ app_name }}_app_data"
       ignore_errors: yes
-    
+
     - name: Remove application containers
       docker_container:
         name: "{{ item }}"
@@ -87,82 +82,21 @@
         - "{{ app_name }}_app"
         - "{{ app_name }}_db"
       ignore_errors: yes
-    
+
     - name: Verify disaster - containers should be gone
-      command: docker ps -a --filter "name={{ app_name }}" --format "{{.Names}}"
-      register: container_check
+      shell: "docker ps -a --filter \"name={{ app_name }}\" --format '{% raw %}{{.Names}}{% endraw %}'"
+      register: disaster_verify
       changed_when: false
-    
-    - name: Verify disaster - volumes should be gone
-      command: docker volume ls --filter "name={{ app_name }}" --format "{{.Name}}"
-      register: volume_check
-      changed_when: false
-    
-    - name: Verify application is unreachable
-      uri:
-        url: "http://localhost:{{ app_port }}/health"
-        timeout: 5
-      register: app_check
-      failed_when: false
-      changed_when: false
-    
-    - name: Record disaster simulation end time
-      set_fact:
-        disaster_end_time: "{{ ansible_date_time.epoch }}"
-    
-    - name: Calculate disaster simulation duration
-      set_fact:
-        disaster_duration: "{{ (disaster_end_time | int) - (disaster_start_time | int) }}"
-    
-    - name: Display disaster simulation results
+
+    - name: Display verification result
+      debug:
+        msg: "Containers remaining: {{ disaster_verify.stdout if disaster_verify.stdout else 'NONE (Success)' }}"
+
+    - name: Disaster simulation complete
       debug:
         msg:
           - "=========================================="
-          - "DISASTER SIMULATION COMPLETE"
+          - "Disaster simulation completed at {{ ansible_date_time.iso8601 }}"
+          - "The application is now DOWN and DATA is LOST."
+          - "Run restore.yml to recover the system."
           - "=========================================="
-          - "Duration: {{ disaster_duration }} seconds"
-          - ""
-          - "Verification Results:"
-          - "  - Running containers: {{ container_check.stdout_lines | length }}"
-          - "  - Existing volumes: {{ volume_check.stdout_lines | length }}"
-          - "  - Application accessible: {{ 'NO' if app_check.status == -1 else 'YES (UNEXPECTED!)' }}"
-          - ""
-          - "Next Steps:"
-          - "  1. Review the disaster state"
-          - "  2. Execute disaster recovery playbook:"
-          - "     ansible-playbook -i inventories/{{ env_name }}/hosts playbooks/restore.yml"
-          - ""
-          - "=========================================="
-    
-    - name: Create disaster simulation report
-      copy:
-        content: |
-          Disaster Simulation Report
-          ==========================
-          
-          Simulation Details:
-          - Environment: {{ env_name }}
-          - Host: {{ inventory_hostname }}
-          - Simulation Date: {{ ansible_date_time.iso8601 }}
-          - Duration: {{ disaster_duration }} seconds
-          
-          Actions Performed:
-          1. ✓ Stopped all application containers
-          2. ✓ Removed all Docker volumes (data loss simulated)
-          3. ✓ Removed all application containers
-          
-          Verification:
-          - Containers remaining: {{ container_check.stdout_lines | length }}
-          - Volumes remaining: {{ volume_check.stdout_lines | length }}
-          - Application status: {{ 'UNREACHABLE (as expected)' if app_check.status == -1 else 'ACCESSIBLE (unexpected!)' }}
-          
-          Pre-Disaster State:
-          - Saved to: /tmp/pre_disaster_state.json
-          
-          Recovery Instructions:
-          Execute the disaster recovery playbook to restore:
-          ansible-playbook -i inventories/{{ env_name }}/hosts playbooks/restore.yml
-          
-          Simulation performed by: {{ ansible_user_id }}
-        dest: "/opt/{{ app_name }}/disaster_simulation_{{ ansible_date_time.epoch }}.txt"
-        mode: '0644'

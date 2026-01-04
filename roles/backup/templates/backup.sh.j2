@@ -87,7 +87,7 @@ log "Backing up PostgreSQL database..."
 DB_START=$(date +%s)
 
 # Check if container exists and is running
-if docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep -q "^${DB_CONTAINER}$\"; then
+if docker ps --format '{% raw %}{{.Names}}{% endraw %}' | grep -q "^${DB_CONTAINER}$"; then
     log "Executing pg_dump..."
     docker exec "${DB_CONTAINER}" pg_dump -U "${DB_USER}" -d "${DB_NAME}" > "${BACKUP_DIR}/database/${DB_NAME}.sql"
     
