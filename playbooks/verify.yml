@@ -105,61 +105,61 @@
         that:
           - create_test.status == 201
           - retrieve_test.json.todos | length > 0
-        success_msg: "✓ Application is fully functional"
-        fail_msg: "✗ Application verification failed"
-    
+        success_msg: "[OK] Application is fully functional"
+        fail_msg: "[FAIL] Application verification failed"
+
     - name: Generate verification report
       debug:
         msg:
           - "=========================================="
           - "VERIFICATION COMPLETE"
           - "=========================================="
-          - "✓ Docker service: Running"
-          - "✓ Containers: {{ container_status.stdout_lines | length }} running"
-          - "✓ Application health: {{ health_response.json.status }}"
-          - "✓ Database: {{ health_response.json.database }}"
-          - "✓ Data records: {{ todos_response.json.todos | length }}"
-          - "✓ Write test: Successful"
-          - "✓ Read test: Successful"
+          - "[OK] Docker service: Running"
+          - "[OK] Containers: {{ container_status.stdout_lines | length }} running"
+          - "[OK] Application health: {{ health_response.json.status }}"
+          - "[OK] Database: {{ health_response.json.database }}"
+          - "[OK] Data records: {{ todos_response.json.todos | length }}"
+          - "[OK] Write test: Successful"
+          - "[OK] Read test: Successful"
           - ""
           - "Application URL: http://{{ ansible_host }}:{{ app_port }}"
           - "=========================================="
-    
+
     - name: Save verification report
       copy:
         content: |
           Post-Recovery Verification Report
           =================================
-          
+
           Verification Date: {{ ansible_date_time.iso8601 }}
           Environment: {{ env_name }}
           Host: {{ inventory_hostname }}
-          
+
           Infrastructure Status:
-          ✓ Docker Service: Running
-          ✓ Containers Running: {{ container_status.stdout_lines | length }}
-          ✓ Volumes Present: {{ volume_status.stdout_lines | length }}
-          
+          [OK] Docker Service: Running
+          [OK] Containers Running: {{ container_status.stdout_lines | length }}
+          [OK] Volumes Present: {{ volume_status.stdout_lines | length }}
+
           Application Status:
-          ✓ Health Status: {{ health_response.json.status }}
-          ✓ Database Status: {{ health_response.json.database }}
-          ✓ Response Time: {{ health_response.elapsed }}s
-          
+          [OK] Health Status: {{ health_response.json.status }}
+          [OK] Database Status: {{ health_response.json.database }}
+          [OK] Response Time: {{ health_response.elapsed }}s
+
           Data Verification:
-          ✓ Database Records: {{ todos_response.json.todos | length }}
-          ✓ Write Operation: Successful
-          ✓ Read Operation: Successful
-          
+          [OK] Database Records: {{ todos_response.json.todos | length }}
+          [OK] Write Operation: Successful
+          [OK] Read Operation: Successful
+
           Backup System:
           {{ backup_status.stdout }}
-          
+
           Disk Usage:
           {{ disk_usage.stdout }}
-          
+
           Conclusion:
           All verification tests passed successfully.
           The application has been fully restored and is operational.
-          
+
           Verified by: {{ ansible_user_id }}
         dest: "/opt/{{ app_name }}/verification_report_{{ ansible_date_time.epoch }}.txt"
         mode: '0644'

@@ -21,14 +21,14 @@
       debug:
         msg:
           - "=========================================="
-          - "⚠️  DISASTER SIMULATION ⚠️"
+          - "DISASTER SIMULATION"
           - "=========================================="
           - "This playbook will simulate a catastrophic failure by:"
           - "  - Stopping all application containers"
           - "  - Removing all Docker volumes (DATA LOSS)"
           - "  - Removing all Docker containers"
           - ""
-          - "⚠️  THIS WILL DESTROY ALL CURRENT DATA ⚠️"
+          - "THIS WILL DESTROY ALL CURRENT DATA"
           - ""
           - "Use this only for:"
           - "  - Testing disaster recovery procedures"

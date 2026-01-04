@@ -29,13 +29,13 @@ for dir in "${REQUIRED_DIRS[@]}"; do
         error "Missing required directory: ${dir}"
         exit 1
     fi
-    log "✓ Directory exists: ${dir}"
+    log "[OK] Directory exists: ${dir}"
 done
 
 # Verify volume backups
 if [ -f "${BACKUP_DIR}/volumes/db_data.tar.gz" ]; then
     if tar -tzf "${BACKUP_DIR}/volumes/db_data.tar.gz" &>/dev/null; then
-        log "✓ Database volume backup is valid"
+        log "[OK] Database volume backup is valid"
     else
         error "Database volume backup is corrupted"
         exit 1
@@ -49,7 +49,7 @@ if [ -f "${DB_FILE}.gz" ]; then
 fi
 
 if [ -f "${DB_FILE}" ]; then
-    log "✓ Database dump exists: $(du -h ${DB_FILE} | cut -f1)"
+    log "[OK] Database dump exists: $(du -h ${DB_FILE} | cut -f1)"
 else
     error "Database dump not found"
     exit 1
@@ -57,7 +57,7 @@ fi
 
 # Verify metadata
 if [ -f "${BACKUP_DIR}/backup_metadata.json" ]; then
-    log "✓ Backup metadata exists"
+    log "[OK] Backup metadata exists"
 else
     warning "Backup metadata missing"
 fi

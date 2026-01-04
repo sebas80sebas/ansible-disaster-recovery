@@ -28,45 +28,45 @@ check: ## Check Ansible syntax
 	@ansible-playbook playbooks/restore.yml --syntax-check
 	@ansible-playbook playbooks/simulate_disaster.yml --syntax-check
 	@ansible-playbook playbooks/verify.yml --syntax-check
-	@echo "$(GREEN)✓ Syntax check passed$(NC)"
+	@echo "$(GREEN)[OK] Syntax check passed$(NC)"
 
 ping: ## Test connectivity to hosts
 	@echo "$(GREEN)Testing connectivity to $(ENV) hosts...$(NC)"
 	@ansible -i $(INVENTORY) all -m ping
 
 deploy: ## Deploy complete infrastructure
-	@echo "$(YELLOW)Deploying to $(ENV)...$(NC)"
-	@ansible-playbook -i $(INVENTORY) site.yml
+	@echo -e "$(YELLOW)Deploying to $(ENV)...$(NC)"
+	@ansible-playbook -i $(INVENTORY) site.yml --ask-become-pass
 
 deploy-staging: ## Deploy to staging
 	@$(MAKE) deploy ENV=staging
 
 deploy-production: ## Deploy to production (requires vault password)
-	@$(MAKE) deploy ENV=production --ask-vault-pass
+	@$(MAKE) deploy ENV=production --ask-vault-pass --ask-become-pass
 
 backup: ## Perform manual backup
-	@echo "$(GREEN)Creating backup on $(ENV)...$(NC)"
-	@ansible-playbook -i $(INVENTORY) playbooks/backup.yml
+	@echo -e "$(GREEN)Creating backup on $(ENV)...$(NC)"
+	@ansible-playbook -i $(INVENTORY) playbooks/backup.yml --ask-become-pass
 
 restore: ## Restore from latest backup
-	@echo "$(RED)⚠️  WARNING: This will restore from backup!$(NC)"
-	@echo "Environment: $(ENV)"
+	@echo -e "$(RED)WARNING: This will restore from backup!$(NC)"
+	@echo -e "Environment: $(ENV)"
 	@read -p "Press Enter to continue or Ctrl+C to abort..."
-	@ansible-playbook -i $(INVENTORY) playbooks/restore.yml
+	@ansible-playbook -i $(INVENTORY) playbooks/restore.yml --ask-become-pass
 
 disaster: ## Simulate disaster (DESTRUCTIVE!)
-	@echo "$(RED)⚠️  DANGER: This will destroy all data!$(NC)"
-	@echo "Environment: $(ENV)"
+	@echo -e "$(RED)DANGER: This will destroy all data!$(NC)"
+	@echo -e "Environment: $(ENV)"
 	@read -p "Type 'destroy' to continue: " confirm; \
 	if [ "$$confirm" = "destroy" ]; then \
-		ansible-playbook -i $(INVENTORY) playbooks/simulate_disaster.yml; \
+		ansible-playbook -i $(INVENTORY) playbooks/simulate_disaster.yml --ask-become-pass; \
 	else \
-		echo "$(YELLOW)Aborted$(NC)"; \
+		echo -e "$(YELLOW)Aborted$(NC)"; \
 	fi
 
 verify: ## Verify application health
-	@echo "$(GREEN)Verifying $(ENV) application...$(NC)"
-	@ansible-playbook -i $(INVENTORY) playbooks/verify.yml
+	@echo -e "$(GREEN)Verifying $(ENV) application...$(NC)"
+	@ansible-playbook -i $(INVENTORY) playbooks/verify.yml --ask-become-pass
 
 test: ## Run complete DR test
 	@echo "$(YELLOW)Running complete DR test on $(ENV)...$(NC)"
@@ -86,7 +86,7 @@ clean: ## Clean up temporary files
 	@rm -f ansible.log
 	@rm -f /tmp/dr_*.log
 	@rm -f /tmp/pre_disaster_state.json
-	@echo "$(GREEN)✓ Cleanup complete$(NC)"
+	@echo "$(GREEN)[OK] Cleanup complete$(NC)"
 
 vault-create: ## Create new vault file
 	@echo "$(GREEN)Creating vault file for $(ENV)...$(NC)"

@@ -6,7 +6,7 @@
 
 A production-ready Ansible project that automates disaster recovery for the **Resilience Taskboard**, a containerized Flask application with PostgreSQL storage.
 
-## 🎯 Project Overview
+## Project Overview
 
 This project demonstrates enterprise-level DevOps practices for automated backup and recovery, including:
 
@@ -16,7 +16,7 @@ This project demonstrates enterprise-level DevOps practices for automated backup
 - **One-command Recovery**: Seamless restoration from catastrophic failures.
 - **Ubuntu 24.04 Ready**: Fully compliant with modern security and Python standards (PEP 668).
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Prerequisites
 - **OS**: Linux (Ubuntu 24.04 LTS recommended)
@@ -29,7 +29,6 @@ You can use the provided Makefile for convenience. It handles the deployment to 
 ```bash
 # Full deployment (installs Docker, App, and Backup scripts)
 make deploy
-# Note: You will be asked for your sudo password.
 ```
 
 Or manually with Ansible:
@@ -48,18 +47,33 @@ Follow these steps to test the resilience of the system:
     ```bash
     make backup
     ```
+    **Alternative Ansible Command:**
+    ```bash
+    ansible-playbook -i inventories/staging/hosts playbooks/backup.yml --ask-become-pass
+    ```
+
 3.  **Simulate Disaster**: (WARNING: Destructive!) Stops containers and deletes volumes.
     ```bash
     make disaster
     # Type 'destroy' when prompted
     ```
+    **Alternative Ansible Command:**
+    ```bash
+    ansible-playbook -i inventories/staging/hosts playbooks/simulate_disaster.yml --ask-become-pass
+    ```
+
 4.  **Restore**: Recover everything from the latest backup.
     ```bash
     make restore
     ```
+    **Alternative Ansible Command:**
+    ```bash
+    ansible-playbook -i inventories/staging/hosts playbooks/restore.yml --ask-become-pass
+    ```
+
 5.  **Verify**: Check the URL again. Your data should be back.
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Common Issues on Ubuntu 24.04
 
@@ -83,7 +97,7 @@ If you encounter `Unsupported parameters for (docker_volume) module: force`, it 
 If `make restore` fails with `read: arg count`, it's because `/bin/sh` (dash) doesn't support `read -p`.
 - **Fix**: The Makefile now explicitly uses `SHELL := /bin/bash` to ensure compatibility.
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 ansible-disaster-recovery/
@@ -95,5 +109,5 @@ ansible-disaster-recovery/
 └── docs/                 # Detailed manuals
 ```
 
-## 📝 License
+## License
 MIT - See [LICENSE](LICENSE) for details.

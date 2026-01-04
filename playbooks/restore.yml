@@ -12,7 +12,7 @@
       debug:
         msg:
           - "=========================================="
-          - "⚠️  DISASTER RECOVERY IN PROGRESS ⚠️"
+          - "DISASTER RECOVERY IN PROGRESS"
           - "=========================================="
           - "This will:"
           - "  - Stop all running containers"

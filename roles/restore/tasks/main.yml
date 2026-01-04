@@ -225,14 +225,14 @@
       - Database Status: {{ health_check.json.database }}
       
       Recovery Steps Completed:
-      1. ✓ Stopped all containers
-      2. ✓ Removed existing volumes
-      3. ✓ Restored database volume
-      4. ✓ Restored application volume
-      5. ✓ Restored configuration files
-      6. ✓ Restored database from SQL dump
-      7. ✓ Started all services
-      8. ✓ Verified application health
+      1. [OK] Stopped all containers
+      2. [OK] Removed existing volumes
+      3. [OK] Restored database volume
+      4. [OK] Restored application volume
+      5. [OK] Restored configuration files
+      6. [OK] Restored database from SQL dump
+      7. [OK] Started all services
+      8. [OK] Verified application health
       
       Recovery performed by: {{ ansible_user_id }}
       Ansible version: {{ ansible_version.full }}

@@ -76,4 +76,4 @@ Refresh the browser. Your tasks are back!
 - `make verify`: Automated health check.
 - `make clean`: Remove temporary Ansible files.
 
-Happy automating! 🚀
+Happy automating!

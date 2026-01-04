@@ -18,7 +18,7 @@ NC='\033[0m' # No Color
 
 # Functions
 log() {
-    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
+    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] [OK] $1${NC}"
 }
 
 error() {
@@ -52,9 +52,9 @@ log "Application Port: ${APP_PORT}"
 step "STEP 1: Deploy Infrastructure"
 log "Deploying complete infrastructure from scratch..."
 if ansible-playbook -i "${INVENTORY}" site.yml > /tmp/dr_deploy.log 2>&1; then
-    log "✓ Infrastructure deployed successfully"
+    log "[OK] Infrastructure deployed successfully"
 else
-    error "✗ Infrastructure deployment failed"
+    error "[FAIL] Infrastructure deployment failed"
     cat /tmp/dr_deploy.log
     exit 1
 fi
@@ -66,9 +66,9 @@ sleep 10
 step "STEP 2: Verify Initial Deployment"
 log "Checking application health..."
 if curl -sf "http://${APP_HOST}:${APP_PORT}/health" > /dev/null; then
-    log "✓ Application is healthy"
+    log "[OK] Application is healthy"
 else
-    error "✗ Application is not responding"
+    error "[FAIL] Application is not responding"
     exit 1
 fi
 
@@ -88,15 +88,15 @@ log "Initial data count: ${INITIAL_COUNT}"
 
 # Save state
 curl -sf "http://${APP_HOST}:${APP_PORT}/api/todos" > /tmp/pre_disaster_state.json
-log "✓ Test data created and saved"
+log "[OK] Test data created and saved"
 
 # Step 4: Create Backup
 step "STEP 4: Create Backup"
 log "Creating backup..."
 if ansible-playbook -i "${INVENTORY}" playbooks/backup.yml > /tmp/dr_backup.log 2>&1; then
-    log "✓ Backup created successfully"
+    log "[OK] Backup created successfully"
 else
-    error "✗ Backup creation failed"
+    error "[FAIL] Backup creation failed"
     cat /tmp/dr_backup.log
     exit 1
 fi
@@ -109,9 +109,9 @@ sleep 3
 
 if ansible-playbook -i "${INVENTORY}" playbooks/simulate_disaster.yml \
     --extra-vars '{"confirmation":{"user_input":"destroy"}}' > /tmp/dr_disaster.log 2>&1; then
-    log "✓ Disaster simulated successfully"
+    log "[OK] Disaster simulated successfully"
 else
-    error "✗ Disaster simulation failed"
+    error "[FAIL] Disaster simulation failed"
     cat /tmp/dr_disaster.log
     exit 1
 fi
@@ -119,10 +119,10 @@ fi
 # Verify disaster
 log "Verifying disaster state..."
 if curl -sf "http://${APP_HOST}:${APP_PORT}/health" > /dev/null 2>&1; then
-    error "✗ Application still responding (disaster simulation incomplete)"
+    error "[FAIL] Application still responding (disaster simulation incomplete)"
     exit 1
 else
-    log "✓ Application is down (as expected)"
+    log "[OK] Application is down (as expected)"
 fi
 
 # Step 6: Perform Recovery (TIMED)
@@ -138,10 +138,10 @@ if ansible-playbook -i "${INVENTORY}" playbooks/restore.yml \
     --skip-tags confirm > /tmp/dr_restore.log 2>&1; then
     RECOVERY_END=$(date +%s)
     RECOVERY_TIME=$((RECOVERY_END - RECOVERY_START))
-    log "✓ Recovery completed successfully"
+    log "[OK] Recovery completed successfully"
     log "Recovery Time Objective (RTO): ${RECOVERY_TIME} seconds ($(echo "scale=2; ${RECOVERY_TIME}/60" | bc) minutes)"
 else
-    error "✗ Recovery failed"
+    error "[FAIL] Recovery failed"
     cat /tmp/dr_restore.log
     exit 1
 fi
@@ -155,10 +155,10 @@ sleep 5
 if curl -sf "http://${APP_HOST}:${APP_PORT}/health" > /tmp/health_check.json; then
     HEALTH_STATUS=$(jq -r '.status' /tmp/health_check.json)
     DB_STATUS=$(jq -r '.database' /tmp/health_check.json)
-    log "✓ Application health: ${HEALTH_STATUS}"
-    log "✓ Database status: ${DB_STATUS}"
+    log "[OK] Application health: ${HEALTH_STATUS}"
+    log "[OK] Database status: ${DB_STATUS}"
 else
-    error "✗ Health check failed"
+    error "[FAIL] Health check failed"
     exit 1
 fi
 
@@ -167,7 +167,7 @@ RECOVERED_COUNT=$(curl -sf "http://${APP_HOST}:${APP_PORT}/api/todos" | jq '.tod
 log "Recovered data count: ${RECOVERED_COUNT}"
 
 if [ "${RECOVERED_COUNT}" -ge "${INITIAL_COUNT}" ]; then
-    log "✓ Data successfully restored (${RECOVERED_COUNT} >= ${INITIAL_COUNT})"
+    log "[OK] Data successfully restored (${RECOVERED_COUNT} >= ${INITIAL_COUNT})"
 else
     warning "⚠ Data count mismatch (${RECOVERED_COUNT} < ${INITIAL_COUNT})"
 fi
@@ -180,17 +180,17 @@ TEST_TODO_ID=$(curl -sf -X POST "http://${APP_HOST}:${APP_PORT}/api/todos" \
     -d '{"title": "Post-recovery test"}' | jq -r '.id')
 
 if [ -n "${TEST_TODO_ID}" ] && [ "${TEST_TODO_ID}" != "null" ]; then
-    log "✓ Write operation successful (ID: ${TEST_TODO_ID})"
+    log "[OK] Write operation successful (ID: ${TEST_TODO_ID})"
 else
-    error "✗ Write operation failed"
+    error "[FAIL] Write operation failed"
     exit 1
 fi
 
 log "Testing read operations..."
 if curl -sf "http://${APP_HOST}:${APP_PORT}/api/todos" | jq -e '.todos' > /dev/null; then
-    log "✓ Read operation successful"
+    log "[OK] Read operation successful"
 else
-    error "✗ Read operation failed"
+    error "[FAIL] Read operation failed"
     exit 1
 fi
 
@@ -198,9 +198,9 @@ fi
 step "STEP 9: Complete Verification"
 log "Running comprehensive verification..."
 if ansible-playbook -i "${INVENTORY}" playbooks/verify.yml > /tmp/dr_verify.log 2>&1; then
-    log "✓ Verification completed successfully"
+    log "[OK] Verification completed successfully"
 else
-    error "✗ Verification failed"
+    error "[FAIL] Verification failed"
     cat /tmp/dr_verify.log
     exit 1
 fi
@@ -214,13 +214,13 @@ step "DISASTER RECOVERY TEST COMPLETE"
 echo ""
 echo "Test Results Summary:"
 echo "===================="
-echo -e "✓ Infrastructure Deployment: ${GREEN}SUCCESS${NC}"
-echo -e "✓ Test Data Creation: ${GREEN}SUCCESS${NC}"
-echo -e "✓ Backup Creation: ${GREEN}SUCCESS${NC}"
-echo -e "✓ Disaster Simulation: ${GREEN}SUCCESS${NC}"
-echo -e "✓ Recovery Execution: ${GREEN}SUCCESS${NC}"
-echo -e "✓ Data Verification: ${GREEN}SUCCESS${NC}"
-echo -e "✓ Functional Testing: ${GREEN}SUCCESS${NC}"
+echo -e "[OK] Infrastructure Deployment: ${GREEN}SUCCESS${NC}"
+echo -e "[OK] Test Data Creation: ${GREEN}SUCCESS${NC}"
+echo -e "[OK] Backup Creation: ${GREEN}SUCCESS${NC}"
+echo -e "[OK] Disaster Simulation: ${GREEN}SUCCESS${NC}"
+echo -e "[OK] Recovery Execution: ${GREEN}SUCCESS${NC}"
+echo -e "[OK] Data Verification: ${GREEN}SUCCESS${NC}"
+echo -e "[OK] Functional Testing: ${GREEN}SUCCESS${NC}"
 echo ""
 echo "Performance Metrics:"
 echo "===================="
@@ -253,14 +253,14 @@ Test Execution Details:
 - Duration: ${TOTAL_TIME} seconds
 
 Test Steps:
-1. ✓ Infrastructure Deployment
-2. ✓ Test Data Creation (${INITIAL_COUNT} records)
-3. ✓ Backup Creation
-4. ✓ Disaster Simulation
-5. ✓ Recovery Execution
-6. ✓ Data Verification (${RECOVERED_COUNT} records recovered)
-7. ✓ Functional Testing
-8. ✓ Complete Verification
+1. [OK] Infrastructure Deployment
+2. [OK] Test Data Creation (${INITIAL_COUNT} records)
+3. [OK] Backup Creation
+4. [OK] Disaster Simulation
+5. [OK] Recovery Execution
+6. [OK] Data Verification (${RECOVERED_COUNT} records recovered)
+7. [OK] Functional Testing
+8. [OK] Complete Verification
 
 Performance Metrics:
 - Recovery Time Objective (RTO): ${RECOVERY_TIME} seconds
@@ -274,6 +274,6 @@ RTO target met. System is fully operational after recovery.
 EOF
 
 log "Report saved to: /tmp/dr_test_report.txt"
-log "All tests passed! ✓"
+log "All tests passed!"
 
 exit 0
